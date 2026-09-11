@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, onSnapshot, Timestamp } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, Timestamp, addDoc, serverTimestamp, deleteDoc, doc as fsDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Message, NavTab, TaskDeadline, ScheduleItem, CourseSummary, QuizSet, BulletinItem, AIChatMessage } from "@/types";
 import { processChatWithAI } from "@/services/aiService";
@@ -65,38 +65,7 @@ export default function App() {
     }
   });
 
-  const [bulletins, setBulletins] = useState<BulletinItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("1infa_bulletins");
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return [
-      {
-        id: "b-kas-default",
-        title: "Uang Kas Kelas 1INFA",
-        category: "kas",
-        content: "Iuran kas kelas 1INFA dikumpulkan rutin untuk keperluan fotokopi modul, perlengkapan kelas, dan kegiatan bersama.",
-        tag: "Pengingat Kas",
-        highlight: "Rp 5.000/mgg atau Rp 20.000/bln",
-      },
-      {
-        id: "b-pdh-default",
-        title: "Baju PDH Informatika A",
-        category: "pdh",
-        content: "Pembuatan seragam Pakaian Dinas Harian (PDH) resmi angkatan Informatika A. Estimasi biaya sekitar Rp 135.000.",
-        tag: "Info Baju PDH",
-        highlight: "Sekitar Rp 135.000",
-      },
-      {
-        id: "b-buku-default",
-        title: "Buku & Modul Kuliah",
-        category: "buku",
-        content: "Pembelian buku dan modul praktikum diatur langsung sesuai instruksi dosen tiap mata kuliah.",
-        tag: "Buku Kuliah",
-        highlight: "Sesuai Arahan Dosen",
-      },
-    ];
-  });
+  const [bulletins, setBulletins] = useState<BulletinItem[]>([]);
 
   // Simpan ke LocalStorage jika state berubah
   useEffect(() => {
@@ -115,9 +84,7 @@ export default function App() {
     localStorage.setItem("1infa_quizzes", JSON.stringify(quizzes));
   }, [quizzes]);
 
-  useEffect(() => {
-    localStorage.setItem("1infa_bulletins", JSON.stringify(bulletins));
-  }, [bulletins]);
+
 
   // Chat History AI - persisted across tab switches
   const [chatHistory, setChatHistory] = useState<AIChatMessage[]>(() => {
@@ -144,6 +111,65 @@ export default function App() {
     const toSave = chatHistory.slice(-50);
     localStorage.setItem("1infa_chat_history", JSON.stringify(toSave));
   }, [chatHistory]);
+
+  // ─── Real-time Firestore Listener untuk Bulletin Board ────────────────────
+  useEffect(() => {
+    const defaultBulletins = [
+      {
+        title: "Uang Kas Kelas 1INFA",
+        category: "kas",
+        content: "Iuran kas kelas 1INFA dikumpulkan rutin untuk keperluan fotokopi modul, perlengkapan kelas, dan kegiatan bersama.",
+        tag: "Pengingat Kas",
+        highlight: "Rp 5.000/mgg atau Rp 20.000/bln",
+        createdAt: Timestamp.fromDate(new Date("2020-01-03")),
+      },
+      {
+        title: "Baju PDH Informatika A",
+        category: "pdh",
+        content: "Pembuatan seragam Pakaian Dinas Harian (PDH) resmi angkatan Informatika A. Estimasi biaya sekitar Rp 135.000.",
+        tag: "Info Baju PDH",
+        highlight: "Sekitar Rp 135.000",
+        createdAt: Timestamp.fromDate(new Date("2020-01-02")),
+      },
+      {
+        title: "Buku & Modul Kuliah",
+        category: "buku",
+        content: "Pembelian buku dan modul praktikum diatur langsung sesuai instruksi dosen tiap mata kuliah.",
+        tag: "Buku Kuliah",
+        highlight: "Sesuai Arahan Dosen",
+        createdAt: Timestamp.fromDate(new Date("2020-01-01")),
+      },
+    ];
+
+    let unsubBulletins = () => {};
+    try {
+      const bq = query(collection(db, "bulletins"), orderBy("createdAt", "desc"));
+      unsubBulletins = onSnapshot(bq, async (snapshot) => {
+        if (snapshot.empty) {
+          for (const item of defaultBulletins) {
+            await addDoc(collection(db, "bulletins"), item);
+          }
+          return;
+        }
+        const items: BulletinItem[] = snapshot.docs.map((d) => ({
+          id: d.id,
+          title: d.data().title || "",
+          category: d.data().category || "random",
+          content: d.data().content || "",
+          tag: d.data().tag,
+          highlight: d.data().highlight,
+          sourceMessage: d.data().sourceMessage,
+          date: d.data().date,
+        }));
+        setBulletins(items);
+      }, (err) => {
+        console.error("Bulletins listener error:", err);
+      });
+    } catch (err) {
+      console.error("Bulletins Firestore error:", err);
+    }
+    return () => unsubBulletins();
+  }, []);
 
   // ─── Real-time Firestore Listener untuk Pesan WhatsApp ─────────────────────
 
@@ -247,6 +273,26 @@ export default function App() {
     setTimeout(() => {
       setIsRefreshing(false);
     }, 600);
+  };
+
+  // ─── Fungsi Bulletin Board (Firestore) ──────────────────────────────────────
+  const handleAddBulletin = async (item: Omit<BulletinItem, "id">) => {
+    try {
+      await addDoc(collection(db, "bulletins"), {
+        ...item,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error menambah catatan:", err);
+    }
+  };
+
+  const handleDeleteBulletin = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "bulletins", id));
+    } catch (err) {
+      console.error("Error menghapus catatan:", err);
+    }
   };
 
   const uniqueGroupNames = Array.from(
@@ -359,7 +405,8 @@ export default function App() {
               {activeTab === "bulletin" && (
                 <BulletinView
                   bulletins={bulletins}
-                  setBulletins={setBulletins}
+                  onAddBulletin={handleAddBulletin}
+                  onDeleteBulletin={handleDeleteBulletin}
                   searchQuery={searchQuery}
                 />
               )}

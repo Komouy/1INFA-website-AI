@@ -15,13 +15,15 @@ import { BulletinItem } from "@/types";
 
 interface BulletinViewProps {
   bulletins: BulletinItem[];
-  setBulletins: React.Dispatch<React.SetStateAction<BulletinItem[]>>;
+  onAddBulletin: (item: Omit<BulletinItem, "id">) => Promise<void>;
+  onDeleteBulletin: (id: string) => Promise<void>;
   searchQuery: string;
 }
 
 export default function BulletinView({
   bulletins,
-  setBulletins,
+  onAddBulletin,
+  onDeleteBulletin,
   searchQuery
 }: BulletinViewProps) {
   const [activeCategory, setActiveCategory] = useState<string>("all");
@@ -33,7 +35,7 @@ export default function BulletinView({
   const [newContent, setNewContent] = useState("");
   const [newHighlight, setNewHighlight] = useState("");
 
-  const handleAddBulletin = (e: React.FormEvent) => {
+  const handleAddBulletin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newContent.trim()) return;
 
@@ -45,17 +47,14 @@ export default function BulletinView({
       random: "Info Santai"
     };
 
-    const newItem: BulletinItem = {
-      id: `b-${Date.now()}`,
+    await onAddBulletin({
       title: newTitle.trim(),
       category: newCategory,
       content: newContent.trim(),
       tag: categoryTags[newCategory] || "Info Tambahan",
       highlight: newHighlight.trim() || undefined,
-      date: "Baru saja"
-    };
-
-    setBulletins([newItem, ...bulletins]);
+      date: new Date().toLocaleDateString("id-ID"),
+    });
     setNewTitle("");
     setNewContent("");
     setNewHighlight("");
@@ -359,19 +358,51 @@ export default function BulletinView({
                       <span>{item.tag || badge.label}</span>
                     </div>
 
-                    {item.highlight && (
-                      <span style={{
-                        fontSize: "12px",
-                        fontWeight: "800",
-                        color: "#059669",
-                        backgroundColor: "#ecfdf5",
-                        padding: "3px 8px",
-                        borderRadius: "6px",
-                        border: "1px solid #a7f3d0"
-                      }}>
-                        {item.highlight}
-                      </span>
-                    )}
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      {item.highlight && (
+                        <span style={{
+                          fontSize: "12px",
+                          fontWeight: "800",
+                          color: "#059669",
+                          backgroundColor: "#ecfdf5",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          border: "1px solid #a7f3d0"
+                        }}>
+                          {item.highlight}
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDeleteBulletin(item.id); }}
+                        title="Hapus catatan ini"
+                        style={{
+                          background: "none",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          color: "#94a3b8",
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "3px",
+                          flexShrink: 0,
+                          transition: "all 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = "#e11d48";
+                          btn.style.borderColor = "#fca5a5";
+                          btn.style.backgroundColor = "#fff1f2";
+                        }}
+                        onMouseLeave={(e) => {
+                          const btn = e.currentTarget;
+                          btn.style.color = "#94a3b8";
+                          btn.style.borderColor = "#e2e8f0";
+                          btn.style.backgroundColor = "transparent";
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
                   </div>
 
                   {/* Title & Content */}
