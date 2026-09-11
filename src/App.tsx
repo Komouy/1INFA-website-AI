@@ -15,6 +15,7 @@ import ScheduleView from "@/components/views/ScheduleView";
 import SummaryView from "@/components/views/SummaryView";
 import QuizView from "@/components/views/QuizView";
 import ChatAiView from "@/components/views/ChatAiView";
+import AdminView from "@/components/views/AdminView";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
@@ -550,6 +551,101 @@ export default function App() {
     }
   };
 
+  // ─── Fungsi Admin: Pesan WhatsApp (Firestore) ───────────────────────────────
+  const handleDeleteMessage = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "messages", id));
+    } catch (err) {
+      console.error("Error menghapus pesan:", err);
+      throw err;
+    }
+  };
+
+  const handleBulkDeleteMessages = async (ids: string[]) => {
+    try {
+      for (const id of ids) {
+        await deleteDoc(fsDoc(db, "messages", id));
+      }
+    } catch (err) {
+      console.error("Error bulk delete pesan:", err);
+      throw err;
+    }
+  };
+
+  const handleClearCompletedDeadlines = async () => {
+    try {
+      const completed = deadlines.filter((d) => d.status === "completed");
+      for (const d of completed) {
+        await deleteDoc(fsDoc(db, "deadlines", d.id));
+      }
+    } catch (err) {
+      console.error("Error bersihkan tugas selesai:", err);
+      throw err;
+    }
+  };
+
+  // ─── Fungsi Admin: Jadwal Perkuliahan (Firestore) ───────────────────────────
+  const handleAddSchedule = async (schedule: Omit<ScheduleItem, "id">) => {
+    try {
+      await addDoc(collection(db, "schedules"), {
+        ...schedule,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error menambah jadwal:", err);
+      throw err;
+    }
+  };
+
+  const handleDeleteSchedule = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "schedules", id));
+    } catch (err) {
+      console.error("Error menghapus jadwal:", err);
+      throw err;
+    }
+  };
+
+  const handleUpdateScheduleStatus = async (id: string, status: ScheduleItem["status"]) => {
+    try {
+      await updateDoc(fsDoc(db, "schedules", id), { status });
+    } catch (err) {
+      console.error("Error update status jadwal:", err);
+      throw err;
+    }
+  };
+
+  // ─── Fungsi Admin: Rangkuman & Kuis (Firestore) ─────────────────────────────
+  const handleDeleteSummary = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "summaries", id));
+    } catch (err) {
+      console.error("Error menghapus rangkuman:", err);
+      throw err;
+    }
+  };
+
+  const handleDeleteQuiz = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "quizzes", id));
+    } catch (err) {
+      console.error("Error menghapus kuis:", err);
+      throw err;
+    }
+  };
+
+  const handleAddQuiz = async (quiz: Omit<QuizSet, "id">) => {
+    try {
+      await addDoc(collection(db, "quizzes"), {
+        ...quiz,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error menambah kuis:", err);
+      throw err;
+    }
+  };
+
   const uniqueGroupNames = Array.from(
     new Set(messages.map((m) => m.group_name).filter(Boolean))
   );
@@ -704,6 +800,30 @@ export default function App() {
                   messages={messages}
                   chatHistory={chatHistory}
                   setChatHistory={setChatHistory}
+                />
+              )}
+
+              {activeTab === "admin" && (
+                <AdminView
+                  messages={messages}
+                  deadlines={deadlines}
+                  schedules={schedules}
+                  bulletins={bulletins}
+                  summaries={summaries}
+                  quizzes={quizzes}
+                  onDeleteMessage={handleDeleteMessage}
+                  onBulkDeleteMessages={handleBulkDeleteMessages}
+                  onDeleteDeadline={handleDeleteDeadline}
+                  onAddDeadline={handleAddDeadline}
+                  onClearCompletedDeadlines={handleClearCompletedDeadlines}
+                  onDeleteSchedule={handleDeleteSchedule}
+                  onAddSchedule={handleAddSchedule}
+                  onUpdateScheduleStatus={handleUpdateScheduleStatus}
+                  onDeleteBulletin={handleDeleteBulletin}
+                  onAddBulletin={handleAddBulletin}
+                  onDeleteSummary={handleDeleteSummary}
+                  onDeleteQuiz={handleDeleteQuiz}
+                  onAddQuiz={handleAddQuiz}
                 />
               )}
             </>

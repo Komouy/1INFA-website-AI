@@ -311,3 +311,113 @@ Pertanyaan Mahasiswa:
     throw new Error(error.message || "Gagal berkomunikasi dengan AI.");
   }
 }
+
+export interface AdminAIAction {
+  type: "ADD_DEADLINE" | "ADD_SCHEDULE" | "ADD_BULLETIN" | "ADD_QUIZ" | "DELETE_DEADLINE" | "DELETE_SCHEDULE" | "CLEAR_COMPLETED_DEADLINES" | "GENERAL_MESSAGE";
+  payload?: any;
+  targetId?: string;
+  summary: string;
+}
+
+export interface AdminAICommandResult {
+  explanation: string;
+  actions: AdminAIAction[];
+}
+
+/**
+ * Memproses instruksi bahasa alami dari Admin Panel menggunakan AI
+ * untuk menghasilkan aksi terstruktur terhadap database website.
+ */
+export async function executeAdminAICommand(
+  instruction: string,
+  context?: { deadlines?: TaskDeadline[]; schedules?: ScheduleItem[] }
+): Promise<AdminAICommandResult> {
+  const geminiKey = getApiKey();
+  const groqKey = getGroqKey();
+
+  if (!geminiKey && !groqKey) {
+    throw new Error("API Key AI belum dikonfigurasi.");
+  }
+
+  const prompt = `Kamu adalah Administrator AI Engine untuk dashboard perkuliahan kelas 1INFA (S1 Informatika A).
+Tugasmu adalah menganalisis perintah/instruksi dari Admin dan mengubahnya menjadi satu atau beberapa AKSI terstruktur JSON.
+
+Format Hari yang valid: "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"
+Status Jadwal yang valid: "normal", "rescheduled", "online", "cancelled"
+Priority Deadline yang valid: "high", "medium", "low"
+Category Bulletin yang valid: "kas", "pdh", "buku", "pengumuman", "random"
+
+Tipe aksi yang didukung:
+1. "ADD_SCHEDULE": Tambah jadwal kuliah baru.
+   payload: { day, course, code, lecturer, startTime, endTime, room, sks, status, notes, meetLink }
+2. "ADD_DEADLINE": Tambah tugas / deadline baru.
+   payload: { title, course, dueDate (YYYY-MM-DD), dueTime (HH:MM), priority, status: "pending", type: "tugas_individu"|"tugas_kelompok", lecturer }
+3. "ADD_BULLETIN": Tambah info/pengumuman di papan info.
+   payload: { title, category, content, tag, highlight }
+4. "ADD_QUIZ": Buatkan kuis latihan.
+   payload: { title, course, description, durationMinutes, difficulty, questions: [{ id, question, options: [4 pilihan], correctAnswer: 0-3, explanation }] }
+5. "CLEAR_COMPLETED_DEADLINES": Hapus semua tugas yang sudah berstatus 'completed'.
+   payload: null
+6. "GENERAL_MESSAGE": Jika perintah hanya pertanyaan atau tidak memicu perubahan data.
+
+Keluarkan HANYA format JSON murni tanpa markdown triple backtick:
+{
+  "explanation": "Penjelasan singkat dalam bahasa Indonesia mengenai apa yang dilakukan",
+  "actions": [
+    {
+      "type": "ADD_SCHEDULE",
+      "summary": "Ringkasan aksi (misal: Menambahkan jadwal Pemrograman Web di hari Sabtu)",
+      "payload": { ... }
+    }
+  ]
+}
+
+Instruksi Admin:
+"${instruction}"`;
+
+  // Coba gunakan Gemini dahulu untuk output JSON terstruktur
+  if (geminiKey) {
+    try {
+      const genAI = new GoogleGenerativeAI(geminiKey);
+      const model = genAI.getGenerativeModel({
+        model: "gemini-3.6-flash",
+        generationConfig: {
+          responseMimeType: "application/json",
+        },
+      });
+
+      const response = await model.generateContent(prompt);
+      const text = response.response.text();
+      const parsed = JSON.parse(text);
+      return {
+        explanation: parsed.explanation || "Perintah berhasil diproses.",
+        actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+      };
+    } catch (err: any) {
+      console.warn("Gemini Admin AI error, trying Groq:", err.message);
+    }
+  }
+
+  // Fallback ke Groq jika ada
+  if (groqKey) {
+    const groq = new Groq({ apiKey: groqKey, dangerouslyAllowBrowser: true });
+    const completion = await groq.chat.completions.create({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { role: "system", content: "Kamu adalah asisten JSON engine. Kamu HANYA mengembalikan objek JSON yang valid." },
+        { role: "user", content: prompt },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const text = completion.choices[0]?.message?.content || "{}";
+    const parsed = JSON.parse(text);
+    return {
+      explanation: parsed.explanation || "Perintah berhasil diproses.",
+      actions: Array.isArray(parsed.actions) ? parsed.actions : [],
+    };
+  }
+
+  throw new Error("Gagal mengeksekusi perintah AI.");
+}
+

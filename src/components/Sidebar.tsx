@@ -10,6 +10,7 @@ import {
   ClockAlert, 
   GraduationCap,
   Megaphone,
+  ShieldCheck,
   X
 } from "lucide-react";
 import { NavTab } from "@/types";
@@ -84,6 +85,13 @@ export default function Sidebar({
       icon: BotMessageSquare,
       badge: "AI",
       badgeType: "kl-badge-primary"
+    },
+    {
+      id: "admin" as NavTab,
+      label: "Panel Admin",
+      icon: ShieldCheck,
+      badge: "PIN",
+      badgeType: "kl-badge-warning"
     }
   ];
 

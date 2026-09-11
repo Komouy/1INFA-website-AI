@@ -1,6 +1,6 @@
 // types/index.ts - Core types for KlassiA Dashboard
 
-export type NavTab = "overview" | "bulletin" | "deadlines" | "schedule" | "summary" | "quiz" | "chatai";
+export type NavTab = "overview" | "bulletin" | "deadlines" | "schedule" | "summary" | "quiz" | "chatai" | "admin";
 
 export interface BulletinItem {
   id: string;

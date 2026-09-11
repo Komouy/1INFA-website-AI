@@ -4,10 +4,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Koleksi messages:
     // - Siapa saja dapat membaca (read = true) untuk feed web/dashboard
-    // - Client SDK dilarang menulis (write = false)
+    // - Admin web dapat menghapus pesan (delete = true)
     // - Firebase Admin SDK membypass aturan ini secara otomatis
     match /messages/{messageId} {
       allow read: if true;
+      allow delete: if true;
       allow write: if false;
     }
 
