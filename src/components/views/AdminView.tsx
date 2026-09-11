@@ -362,7 +362,7 @@ export default function AdminView({
               />
               {pinError && (
                 <p style={{ fontSize: "12px", color: "#ef4444", marginTop: "6px", fontWeight: "500" }}>
-                  PIN salah. Silakan coba lagi. (Default: <code>1infa2026</code>)
+                  PIN salah. Silakan coba lagi.
                 </p>
               )}
             </div>
@@ -372,10 +372,6 @@ export default function AdminView({
               <span>Buka Akses Admin</span>
             </button>
           </form>
-
-          <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "1px solid var(--border)", fontSize: "11px", color: "var(--text-dim)" }}>
-            Default PIN: <strong style={{ color: "var(--text-main)" }}>1infa2026</strong> atau <strong style={{ color: "var(--text-main)" }}>1234</strong>
-          </div>
         </div>
       </div>
     );
@@ -469,7 +465,7 @@ export default function AdminView({
           style={{ fontSize: "12.5px" }}
         >
           <Sparkles size={14} />
-          <span>🤖 Perintah AI Website</span>
+          <span>Perintah AI Website</span>
         </button>
 
         <button
@@ -667,7 +663,7 @@ export default function AdminView({
           {/* Quick Command Suggestion Chips */}
           <div>
             <label style={{ fontSize: "11px", fontWeight: "600", color: "var(--text-muted)", display: "block", marginBottom: "8px" }}>
-              💡 Contoh Perintah Sekali Klik:
+              Contoh Perintah Cepat:
             </label>
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
               {[
