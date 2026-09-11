@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Uploaded/generated files
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node dependencies and build output
+node_modules/
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+*.tsbuildinfo
+
+# Logs and editor files
+*.log
+.DS_Store
+.vscode/
