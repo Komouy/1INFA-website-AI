@@ -13,21 +13,27 @@ import {
   User
 } from "lucide-react";
 import { TaskDeadline } from "@/types";
+import { Trash2 } from "lucide-react";
 
 interface DeadlineViewProps {
   deadlines: TaskDeadline[];
-  setDeadlines: React.Dispatch<React.SetStateAction<TaskDeadline[]>>;
+  onAddTask: (task: Omit<TaskDeadline, "id">) => Promise<void>;
+  onToggleComplete: (id: string, currentStatus: "pending" | "in_progress" | "completed") => Promise<void>;
+  onDeleteTask: (id: string) => Promise<void>;
   searchQuery: string;
 }
 
 export default function DeadlineView({
   deadlines,
-  setDeadlines,
+  onAddTask,
+  onToggleComplete,
+  onDeleteTask,
   searchQuery
 }: DeadlineViewProps) {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCourse, setFilterCourse] = useState<string>("all");
   const [isAddingTask, setIsAddingTask] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskCourse, setNewTaskCourse] = useState("Informatika");
@@ -39,37 +45,47 @@ export default function DeadlineView({
   const [newTaskTime, setNewTaskTime] = useState("23:59");
   const [newTaskPriority, setNewTaskPriority] = useState<"high" | "medium" | "low">("high");
 
-  const handleToggleComplete = (id: string) => {
-    setDeadlines(prev => 
-      prev.map(task => {
-        if (task.id === id) {
-          const nextStatus = task.status === "completed" ? "pending" : "completed";
-          return { ...task, status: nextStatus };
-        }
-        return task;
-      })
-    );
+  const handleToggle = async (task: TaskDeadline) => {
+    try {
+      await onToggleComplete(task.id, task.status);
+    } catch (err) {
+      console.error("Gagal update status:", err);
+    }
   };
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleDelete = async (id: string) => {
+    if (window.confirm("Hapus tugas ini untuk semua mahasiswa?")) {
+      try {
+        await onDeleteTask(id);
+      } catch (err) {
+        console.error("Gagal menghapus tugas:", err);
+      }
+    }
+  };
+
+  const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskTitle.trim()) return;
 
-    const createdTask: TaskDeadline = {
-      id: `task-${Date.now()}`,
-      title: newTaskTitle,
-      course: newTaskCourse,
-      dueDate: newTaskDate,
-      dueTime: newTaskTime,
-      priority: newTaskPriority,
-      status: "pending",
-      sourceMessage: "Ditambahkan manual oleh mahasiswa",
-      type: "tugas_individu"
-    };
-
-    setDeadlines([createdTask, ...deadlines]);
-    setNewTaskTitle("");
-    setIsAddingTask(false);
+    setIsSubmitting(true);
+    try {
+      await onAddTask({
+        title: newTaskTitle.trim(),
+        course: newTaskCourse.trim(),
+        dueDate: newTaskDate,
+        dueTime: newTaskTime,
+        priority: newTaskPriority,
+        status: "pending",
+        sourceMessage: "Ditambahkan manual oleh mahasiswa",
+        type: "tugas_individu"
+      });
+      setNewTaskTitle("");
+      setIsAddingTask(false);
+    } catch (err) {
+      console.error("Gagal menambah tugas:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const courses = Array.from(new Set(deadlines.map(d => d.course)));
@@ -126,7 +142,7 @@ export default function DeadlineView({
 
       {/* Add Task Form */}
       {isAddingTask && (
-        <form onSubmit={handleAddTask} className="kl-card" style={{ display: "flex", flexDirection: "column", gap: "16px", borderColor: "var(--primary)" }}>
+        <form onSubmit={handleCreateTask} className="kl-card" style={{ display: "flex", flexDirection: "column", gap: "16px", borderColor: "var(--primary)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "14px", fontWeight: "700", color: "var(--text-main)" }}>Form Tambah Tugas</span>
             <button 
@@ -181,8 +197,8 @@ export default function DeadlineView({
           </div>
 
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
-            <button type="submit" className="kl-btn kl-btn-primary">
-              Simpan Tugas
+            <button type="submit" disabled={isSubmitting} className="kl-btn kl-btn-primary">
+              {isSubmitting ? "Menyimpan..." : "Simpan Tugas"}
             </button>
           </div>
         </form>
@@ -303,14 +319,34 @@ export default function DeadlineView({
                     {task.lecturer ? <><User size={11} /> {task.lecturer}</> : "Tugas Kelas"}
                   </span>
 
-                  <button
-                    onClick={() => handleToggleComplete(task.id)}
-                    className={`kl-btn ${isDone ? "kl-btn-secondary" : "kl-btn-primary"}`}
-                    style={{ padding: "6px 12px", fontSize: "11.5px" }}
-                  >
-                    <CheckCircle2 size={13} />
-                    <span>{isDone ? "Batal Selesai" : "Tandai Selesai"}</span>
-                  </button>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <button
+                      onClick={() => handleDelete(task.id)}
+                      title="Hapus Tugas"
+                      style={{
+                        padding: "6px",
+                        borderRadius: "8px",
+                        border: "1px solid #fee2e2",
+                        backgroundColor: "#fef2f2",
+                        color: "#ef4444",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center"
+                      }}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+
+                    <button
+                      onClick={() => handleToggle(task)}
+                      className={`kl-btn ${isDone ? "kl-btn-secondary" : "kl-btn-primary"}`}
+                      style={{ padding: "6px 12px", fontSize: "11.5px" }}
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>{isDone ? "Batal Selesai" : "Tandai Selesai"}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );

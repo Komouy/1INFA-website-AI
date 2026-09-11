@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, onSnapshot, Timestamp, addDoc, serverTimestamp, deleteDoc, doc as fsDoc } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, Timestamp, addDoc, serverTimestamp, deleteDoc, updateDoc, doc as fsDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Message, NavTab, TaskDeadline, ScheduleItem, CourseSummary, QuizSet, BulletinItem, AIChatMessage } from "@/types";
 import { processChatWithAI } from "@/services/aiService";
@@ -28,61 +28,12 @@ export default function App() {
   // Data asli dari Firestore
   const [messages, setMessages] = useState<Message[]>([]);
 
-  // State hasil analisis dengan LocalStorage Persistence (agar tidak hilang saat refresh)
-  const [deadlines, setDeadlines] = useState<TaskDeadline[]>(() => {
-    try {
-      const saved = localStorage.getItem("1infa_deadlines");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
-    try {
-      const saved = localStorage.getItem("1infa_schedules");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [summaries, setSummaries] = useState<CourseSummary[]>(() => {
-    try {
-      const saved = localStorage.getItem("1infa_summaries");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [quizzes, setQuizzes] = useState<QuizSet[]>(() => {
-    try {
-      const saved = localStorage.getItem("1infa_quizzes");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
+  // State data bersama yang disinkronkan secara real-time via Firestore
+  const [deadlines, setDeadlines] = useState<TaskDeadline[]>([]);
+  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
+  const [summaries, setSummaries] = useState<CourseSummary[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizSet[]>([]);
   const [bulletins, setBulletins] = useState<BulletinItem[]>([]);
-
-  // Simpan ke LocalStorage jika state berubah
-  useEffect(() => {
-    localStorage.setItem("1infa_deadlines", JSON.stringify(deadlines));
-  }, [deadlines]);
-
-  useEffect(() => {
-    localStorage.setItem("1infa_schedules", JSON.stringify(schedules));
-  }, [schedules]);
-
-  useEffect(() => {
-    localStorage.setItem("1infa_summaries", JSON.stringify(summaries));
-  }, [summaries]);
-
-  useEffect(() => {
-    localStorage.setItem("1infa_quizzes", JSON.stringify(quizzes));
-  }, [quizzes]);
 
 
 
@@ -171,6 +122,237 @@ export default function App() {
     return () => unsubBulletins();
   }, []);
 
+  // ─── Real-time Firestore Listener untuk Deadlines (Tugas) ───────────────────
+  useEffect(() => {
+    let unsubDeadlines = () => {};
+    try {
+      const q = query(collection(db, "deadlines"), orderBy("dueDate", "asc"));
+      unsubDeadlines = onSnapshot(q, async (snapshot) => {
+        if (snapshot.empty) {
+          const defaultDeadlines = [
+            {
+              title: "Tugas Praktikum: Struktur Kontrol & Array",
+              course: "Algoritma & Struktur Data",
+              dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0],
+              dueTime: "23:59",
+              priority: "high",
+              status: "pending",
+              sourceMessage: "Kumpulkan modul dan source code di portal akademik",
+              lecturer: "Dr. Budi Santoso, M.Kom",
+              type: "tugas_individu",
+              createdAt: serverTimestamp(),
+            },
+            {
+              title: "Perancangan Skema Database PostgreSQL",
+              course: "Sistem Basis Data",
+              dueDate: new Date(Date.now() + 6 * 86400000).toISOString().split("T")[0],
+              dueTime: "23:59",
+              priority: "medium",
+              status: "pending",
+              sourceMessage: "Tugas kelompok 2-3 orang format PDF laporan perancangan ERD",
+              lecturer: "Siti Rahma, S.T., M.T.",
+              type: "tugas_kelompok",
+              createdAt: serverTimestamp(),
+            },
+          ];
+          for (const item of defaultDeadlines) {
+            await addDoc(collection(db, "deadlines"), item);
+          }
+          return;
+        }
+
+        const items: TaskDeadline[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            title: data.title || "",
+            course: data.course || "Informatika",
+            dueDate: data.dueDate || "",
+            dueTime: data.dueTime || "23:59",
+            priority: data.priority || "medium",
+            status: data.status || "pending",
+            sourceMessage: data.sourceMessage,
+            lecturer: data.lecturer,
+            type: data.type || "tugas_individu",
+          };
+        });
+        setDeadlines(items);
+      }, (err) => {
+        console.error("Deadlines listener error:", err);
+      });
+    } catch (err) {
+      console.error("Deadlines Firestore error:", err);
+    }
+    return () => unsubDeadlines();
+  }, []);
+
+  // ─── Real-time Firestore Listener untuk Jadwal Perkuliahan ──────────────────
+  useEffect(() => {
+    let unsubSchedules = () => {};
+    try {
+      const q = query(collection(db, "schedules"));
+      unsubSchedules = onSnapshot(q, async (snapshot) => {
+        if (snapshot.empty) {
+          const defaultSchedules = [
+            {
+              day: "Senin",
+              course: "Algoritma & Struktur Data",
+              code: "IF2101",
+              lecturer: "Dr. Budi Santoso, M.Kom",
+              startTime: "08:00",
+              endTime: "10:30",
+              room: "Lab Komputer 2",
+              sks: 3,
+              status: "normal",
+              notes: "Membawa modul praktikum Bab 1-3",
+              createdAt: serverTimestamp(),
+            },
+            {
+              day: "Selasa",
+              course: "Sistem Basis Data",
+              code: "IF2102",
+              lecturer: "Siti Rahma, S.T., M.T.",
+              startTime: "10:00",
+              endTime: "12:30",
+              room: "Ruang Teori 304",
+              sks: 3,
+              status: "normal",
+              notes: "Instalasi PostgreSQL di laptop masing-masing",
+              createdAt: serverTimestamp(),
+            },
+            {
+              day: "Rabu",
+              course: "Pemrograman Web Lanjut",
+              code: "IF2103",
+              lecturer: "Ahmad Fauzi, M.Cs",
+              startTime: "13:00",
+              endTime: "15:30",
+              room: "Lab Rekayasa Perangkat Lunak",
+              sks: 3,
+              status: "online",
+              notes: "Kuliah daring via Zoom Meeting",
+              meetLink: "https://zoom.us/j/1234567890",
+              createdAt: serverTimestamp(),
+            },
+            {
+              day: "Kamis",
+              course: "Sistem Operasi",
+              code: "IF2104",
+              lecturer: "Prof. Hendra Wijaya",
+              startTime: "08:00",
+              endTime: "10:30",
+              room: "Ruang 201",
+              sks: 3,
+              status: "normal",
+              notes: "Pengenalan Linux Kernel dan Shell Scripting",
+              createdAt: serverTimestamp(),
+            },
+            {
+              day: "Jumat",
+              course: "Matematika Diskrit",
+              code: "IF2105",
+              lecturer: "Dra. Nurul Hidayah, M.Si",
+              startTime: "08:30",
+              endTime: "11:00",
+              room: "Ruang Teori 102",
+              sks: 2,
+              status: "normal",
+              notes: "Materi Teori Graf & Relasi Logika",
+              createdAt: serverTimestamp(),
+            },
+          ];
+          for (const item of defaultSchedules) {
+            await addDoc(collection(db, "schedules"), item);
+          }
+          return;
+        }
+
+        const items: ScheduleItem[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            day: data.day || "Senin",
+            course: data.course || "",
+            code: data.code || "",
+            lecturer: data.lecturer || "",
+            startTime: data.startTime || "",
+            endTime: data.endTime || "",
+            room: data.room || "",
+            sks: data.sks || 3,
+            status: data.status || "normal",
+            notes: data.notes,
+            meetLink: data.meetLink,
+          };
+        });
+        setSchedules(items);
+      }, (err) => {
+        console.error("Schedules listener error:", err);
+      });
+    } catch (err) {
+      console.error("Schedules Firestore error:", err);
+    }
+    return () => unsubSchedules();
+  }, []);
+
+  // ─── Real-time Firestore Listener untuk Rangkuman Materi AI ─────────────────
+  useEffect(() => {
+    let unsubSummaries = () => {};
+    try {
+      const q = query(collection(db, "summaries"), orderBy("date", "desc"));
+      unsubSummaries = onSnapshot(q, (snapshot) => {
+        const items: CourseSummary[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            course: data.course || "",
+            date: data.date || "",
+            topic: data.topic || "",
+            keyPoints: Array.isArray(data.keyPoints) ? data.keyPoints : [],
+            actionItems: Array.isArray(data.actionItems) ? data.actionItems : [],
+            materials: Array.isArray(data.materials) ? data.materials : [],
+            aiConfidence: data.aiConfidence || 90,
+            extractedFromCount: data.extractedFromCount || 1,
+          };
+        });
+        setSummaries(items);
+      }, (err) => {
+        console.error("Summaries listener error:", err);
+      });
+    } catch (err) {
+      console.error("Summaries Firestore error:", err);
+    }
+    return () => unsubSummaries();
+  }, []);
+
+  // ─── Real-time Firestore Listener untuk Latihan Kuis AI ─────────────────────
+  useEffect(() => {
+    let unsubQuizzes = () => {};
+    try {
+      const q = query(collection(db, "quizzes"));
+      unsubQuizzes = onSnapshot(q, (snapshot) => {
+        const items: QuizSet[] = snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            title: data.title || "",
+            course: data.course || "",
+            description: data.description || "",
+            durationMinutes: data.durationMinutes || 10,
+            questions: Array.isArray(data.questions) ? data.questions : [],
+            generatedFrom: data.generatedFrom || "AI",
+            difficulty: data.difficulty || "Sedang",
+          };
+        });
+        setQuizzes(items);
+      }, (err) => {
+        console.error("Quizzes listener error:", err);
+      });
+    } catch (err) {
+      console.error("Quizzes Firestore error:", err);
+    }
+    return () => unsubQuizzes();
+  }, []);
+
   // ─── Real-time Firestore Listener untuk Pesan WhatsApp ─────────────────────
 
   useEffect(() => {
@@ -241,24 +423,63 @@ export default function App() {
     try {
       const result = await processChatWithAI(messages);
 
+      // Simpan Deadlines ke Firestore agar semua orang langsung melihat
       if (Array.isArray(result.deadlines) && result.deadlines.length > 0) {
-        setDeadlines(result.deadlines);
-      }
-      if (Array.isArray(result.schedules) && result.schedules.length > 0) {
-        setSchedules(result.schedules);
-      }
-      if (Array.isArray(result.summaries) && result.summaries.length > 0) {
-        setSummaries(result.summaries);
-      }
-      if (Array.isArray(result.quizzes) && result.quizzes.length > 0) {
-        setQuizzes(result.quizzes);
-      }
-      if (Array.isArray(result.bulletins) && result.bulletins.length > 0) {
-        setBulletins(result.bulletins);
+        for (const dl of result.deadlines) {
+          const { id, ...dlData } = dl;
+          await addDoc(collection(db, "deadlines"), {
+            ...dlData,
+            createdAt: serverTimestamp(),
+          });
+        }
       }
 
-      setAiStatusMessage("Analisis selesai! Data tugas, jadwal, rangkuman, kuis, dan pengumuman kas/PDH telah diperbarui.");
-      setTimeout(() => setAiStatusMessage(null), 4000);
+      // Simpan Jadwal ke Firestore
+      if (Array.isArray(result.schedules) && result.schedules.length > 0) {
+        for (const sch of result.schedules) {
+          const { id, ...schData } = sch;
+          await addDoc(collection(db, "schedules"), {
+            ...schData,
+            createdAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // Simpan Rangkuman ke Firestore
+      if (Array.isArray(result.summaries) && result.summaries.length > 0) {
+        for (const sm of result.summaries) {
+          const { id, ...smData } = sm;
+          await addDoc(collection(db, "summaries"), {
+            ...smData,
+            createdAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // Simpan Kuis ke Firestore
+      if (Array.isArray(result.quizzes) && result.quizzes.length > 0) {
+        for (const qz of result.quizzes) {
+          const { id, ...qzData } = qz;
+          await addDoc(collection(db, "quizzes"), {
+            ...qzData,
+            createdAt: serverTimestamp(),
+          });
+        }
+      }
+
+      // Simpan Catatan Bulletin ke Firestore
+      if (Array.isArray(result.bulletins) && result.bulletins.length > 0) {
+        for (const bl of result.bulletins) {
+          const { id, ...blData } = bl;
+          await addDoc(collection(db, "bulletins"), {
+            ...blData,
+            createdAt: serverTimestamp(),
+          });
+        }
+      }
+
+      setAiStatusMessage("Analisis selesai! Data tugas, jadwal, rangkuman, kuis, dan bulletin telah tersimpan di database dan otomatis tersinkronisasi ke seluruh mahasiswa.");
+      setTimeout(() => setAiStatusMessage(null), 5000);
     } catch (err: any) {
       console.error("AI Analysis error:", err);
       setAiStatusMessage(`Gagal: ${err.message}`);
@@ -292,6 +513,40 @@ export default function App() {
       await deleteDoc(fsDoc(db, "bulletins", id));
     } catch (err) {
       console.error("Error menghapus catatan:", err);
+    }
+  };
+
+  // ─── Fungsi Deadlines (Firestore) ───────────────────────────────────────────
+  const handleAddDeadline = async (task: Omit<TaskDeadline, "id">) => {
+    try {
+      await addDoc(collection(db, "deadlines"), {
+        ...task,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Error menambah deadline:", err);
+      throw err;
+    }
+  };
+
+  const handleToggleDeadline = async (id: string, currentStatus: "pending" | "in_progress" | "completed") => {
+    try {
+      const nextStatus = currentStatus === "completed" ? "pending" : "completed";
+      await updateDoc(fsDoc(db, "deadlines", id), {
+        status: nextStatus,
+      });
+    } catch (err) {
+      console.error("Error update status deadline:", err);
+      throw err;
+    }
+  };
+
+  const handleDeleteDeadline = async (id: string) => {
+    try {
+      await deleteDoc(fsDoc(db, "deadlines", id));
+    } catch (err) {
+      console.error("Error menghapus deadline:", err);
+      throw err;
     }
   };
 
@@ -414,7 +669,9 @@ export default function App() {
               {activeTab === "deadlines" && (
                 <DeadlineView
                   deadlines={deadlines}
-                  setDeadlines={setDeadlines}
+                  onAddTask={handleAddDeadline}
+                  onToggleComplete={handleToggleDeadline}
+                  onDeleteTask={handleDeleteDeadline}
                   searchQuery={searchQuery}
                 />
               )}
