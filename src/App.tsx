@@ -293,6 +293,7 @@ export default function App() {
         {/* Global Floating AI Status Banner */}
         {aiStatusMessage && (
           <div
+            className="kl-ai-status-banner"
             style={{
               margin: "16px 32px 0 32px",
               padding: "12px 18px",

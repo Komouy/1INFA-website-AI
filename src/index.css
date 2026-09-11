@@ -296,15 +296,25 @@ html, body {
   }
 }
 
+/* ─── Tablet (768px - 1024px): sidebar visible, tighter padding ─── */
+@media (max-width: 1024px) and (min-width: 769px) {
+  .kl-content {
+    padding: 24px;
+  }
+  .kl-header {
+    padding: 0 24px;
+  }
+}
+
 @media (max-width: 768px) {
   /* ── Header switch: hide desktop, show mobile ── */
-  .kl-header-desktop { display: none; }
-  .kl-header-mobile  { display: flex; }
+  .kl-header-desktop { display: none !important; }
+  .kl-header-mobile  { display: flex !important; }
 
   /* ── Header height becomes flexible for the mobile variant ── */
   .kl-header {
     height: auto;
-    padding: 10px 16px;
+    padding: 10px 14px;
     flex-direction: column;
     align-items: stretch;
     gap: 0;
@@ -323,7 +333,6 @@ html, body {
     transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 4px 0 30px rgba(0, 0, 0, 0.15);
     overflow-y: auto;
-    /* Re-enable display that was previously set to none */
     display: flex;
   }
 
@@ -346,17 +355,31 @@ html, body {
     display: flex;
   }
 
-  /* ── Content: add bottom padding so it doesn't hide behind nav bar ── */
+  /* ── Content: tighter padding for mobile ── */
   .kl-content {
-    padding: 16px 16px 80px 16px;
+    padding: 14px 14px 80px 14px;
   }
 
-  /* ── Grid: collapse to single column ── */
+  /* ── Grid: 2-col for stat cards, 1-col for the rest ── */
   .kl-grid-2 {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
+  /* Keep 4-col stats as 2x2 on mobile */
   .kl-grid-4 {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  /* ── Shrink card padding on mobile ── */
+  .kl-card {
+    padding: 14px;
+    border-radius: 14px;
+  }
+
+  /* ── AI status banner: fix hardcoded desktop margins ── */
+  .kl-ai-status-banner {
+    margin: 10px 14px 0 14px !important;
   }
 }
 
