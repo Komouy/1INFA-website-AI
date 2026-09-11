@@ -16,10 +16,11 @@ backend/*.db
 
 # Node dependencies and build output
 node_modules/
-frontend/.next/
-frontend/out/
-frontend/.vercel/
+.next/
+out/
+.vercel/
 *.tsbuildinfo
+next-env.d.ts
 
 # Logs and editor files
 *.log
