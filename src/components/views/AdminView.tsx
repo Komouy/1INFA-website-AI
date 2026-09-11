@@ -241,6 +241,15 @@ export default function AdminView({
         } else if (act.type === "CLEAR_COMPLETED_DEADLINES") {
           await onClearCompletedDeadlines();
           applied++;
+        } else if (act.type === "DELETE_DEADLINE" && act.targetId) {
+          await onDeleteDeadline(act.targetId);
+          applied++;
+        } else if (act.type === "DELETE_SCHEDULE" && act.targetId) {
+          await onDeleteSchedule(act.targetId);
+          applied++;
+        } else if (act.type === "UPDATE_SCHEDULE" && act.targetId && act.payload?.status) {
+          await onUpdateScheduleStatus(act.targetId, act.payload.status);
+          applied++;
         }
       }
 

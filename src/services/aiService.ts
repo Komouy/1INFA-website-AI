@@ -313,7 +313,7 @@ Pertanyaan Mahasiswa:
 }
 
 export interface AdminAIAction {
-  type: "ADD_DEADLINE" | "ADD_SCHEDULE" | "ADD_BULLETIN" | "ADD_QUIZ" | "DELETE_DEADLINE" | "DELETE_SCHEDULE" | "CLEAR_COMPLETED_DEADLINES" | "GENERAL_MESSAGE";
+  type: "ADD_DEADLINE" | "ADD_SCHEDULE" | "ADD_BULLETIN" | "ADD_QUIZ" | "DELETE_DEADLINE" | "DELETE_SCHEDULE" | "UPDATE_SCHEDULE" | "CLEAR_COMPLETED_DEADLINES" | "GENERAL_MESSAGE";
   payload?: any;
   targetId?: string;
   summary: string;
@@ -322,6 +322,21 @@ export interface AdminAIAction {
 export interface AdminAICommandResult {
   explanation: string;
   actions: AdminAIAction[];
+}
+
+function parseJsonSafe(rawText: string): any {
+  let cleaned = rawText.trim();
+  // Hapus markdown triple backticks jika ada
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+  }
+  // Cari substring yang diawali '{' dan diakhiri '}'
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return JSON.parse(cleaned);
 }
 
 /**
@@ -339,9 +354,35 @@ export async function executeAdminAICommand(
     throw new Error("API Key AI belum dikonfigurasi.");
   }
 
+  const contextSummary = context
+    ? `
+Data saat ini di website (gunakan ID ini jika perintah meminta menghapus atau mengubah data):
+- Jadwal Kuliah: ${
+        context.schedules && context.schedules.length > 0
+          ? context.schedules
+              .map(
+                (s) =>
+                  `[ID: ${s.id}] Hari ${s.day}: ${s.course} (${s.code}) jam ${s.startTime}-${s.endTime}, Ruang: ${s.room}, Status: ${s.status}`
+              )
+              .join("; ")
+          : "(Tidak ada jadwal)"
+      }
+- Tugas/Deadline: ${
+        context.deadlines && context.deadlines.length > 0
+          ? context.deadlines
+              .map(
+                (d) =>
+                  `[ID: ${d.id}] ${d.course}: ${d.title} (Deadline: ${d.dueDate} ${d.dueTime}, Status: ${d.status})`
+              )
+              .join("; ")
+          : "(Tidak ada tugas)"
+      }
+`
+    : "";
+
   const prompt = `Kamu adalah Administrator AI Engine untuk dashboard perkuliahan kelas 1INFA (S1 Informatika A).
 Tugasmu adalah menganalisis perintah/instruksi dari Admin dan mengubahnya menjadi satu atau beberapa AKSI terstruktur JSON.
-
+${contextSummary}
 Format Hari yang valid: "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"
 Status Jadwal yang valid: "normal", "rescheduled", "online", "cancelled"
 Priority Deadline yang valid: "high", "medium", "low"
@@ -350,24 +391,31 @@ Category Bulletin yang valid: "kas", "pdh", "buku", "pengumuman", "random"
 Tipe aksi yang didukung:
 1. "ADD_SCHEDULE": Tambah jadwal kuliah baru.
    payload: { day, course, code, lecturer, startTime, endTime, room, sks, status, notes, meetLink }
-2. "ADD_DEADLINE": Tambah tugas / deadline baru.
+2. "DELETE_SCHEDULE": Hapus jadwal tertentu.
+   targetId: "[ID jadwal dari daftar di atas]"
+3. "UPDATE_SCHEDULE": Ubah status/ruangan/link jadwal.
+   targetId: "[ID jadwal dari daftar di atas]", payload: { status?, room?, notes?, meetLink? }
+4. "ADD_DEADLINE": Tambah tugas / deadline baru.
    payload: { title, course, dueDate (YYYY-MM-DD), dueTime (HH:MM), priority, status: "pending", type: "tugas_individu"|"tugas_kelompok", lecturer }
-3. "ADD_BULLETIN": Tambah info/pengumuman di papan info.
+5. "DELETE_DEADLINE": Hapus tugas tertentu.
+   targetId: "[ID tugas dari daftar di atas]"
+6. "ADD_BULLETIN": Tambah info/pengumuman di papan info.
    payload: { title, category, content, tag, highlight }
-4. "ADD_QUIZ": Buatkan kuis latihan.
+7. "ADD_QUIZ": Buatkan kuis latihan.
    payload: { title, course, description, durationMinutes, difficulty, questions: [{ id, question, options: [4 pilihan], correctAnswer: 0-3, explanation }] }
-5. "CLEAR_COMPLETED_DEADLINES": Hapus semua tugas yang sudah berstatus 'completed'.
+8. "CLEAR_COMPLETED_DEADLINES": Hapus semua tugas yang sudah berstatus 'completed'.
    payload: null
-6. "GENERAL_MESSAGE": Jika perintah hanya pertanyaan atau tidak memicu perubahan data.
+9. "GENERAL_MESSAGE": Jika perintah hanya pertanyaan atau tidak memicu perubahan data.
 
-Keluarkan HANYA format JSON murni tanpa markdown triple backtick:
+Keluarkan HANYA format JSON murni tanpa markdown:
 {
-  "explanation": "Penjelasan singkat dalam bahasa Indonesia mengenai apa yang dilakukan",
+  "explanation": "Penjelasan singkat apa yang dilakukan",
   "actions": [
     {
       "type": "ADD_SCHEDULE",
-      "summary": "Ringkasan aksi (misal: Menambahkan jadwal Pemrograman Web di hari Sabtu)",
-      "payload": { ... }
+      "summary": "Ringkasan aksi",
+      "payload": { ... },
+      "targetId": "..."
     }
   ]
 }
@@ -388,7 +436,7 @@ Instruksi Admin:
 
       const response = await model.generateContent(prompt);
       const text = response.response.text();
-      const parsed = JSON.parse(text);
+      const parsed = parseJsonSafe(text);
       return {
         explanation: parsed.explanation || "Perintah berhasil diproses.",
         actions: Array.isArray(parsed.actions) ? parsed.actions : [],
@@ -411,7 +459,7 @@ Instruksi Admin:
     });
 
     const text = completion.choices[0]?.message?.content || "{}";
-    const parsed = JSON.parse(text);
+    const parsed = parseJsonSafe(text);
     return {
       explanation: parsed.explanation || "Perintah berhasil diproses.",
       actions: Array.isArray(parsed.actions) ? parsed.actions : [],

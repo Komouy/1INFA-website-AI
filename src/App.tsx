@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { collection, query, orderBy, limit, onSnapshot, Timestamp, addDoc, serverTimestamp, deleteDoc, updateDoc, doc as fsDoc } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, Timestamp, addDoc, serverTimestamp, deleteDoc, updateDoc, writeBatch, doc as fsDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { Message, NavTab, TaskDeadline, ScheduleItem, CourseSummary, QuizSet, BulletinItem, AIChatMessage } from "@/types";
 import { processChatWithAI } from "@/services/aiService";
@@ -410,10 +410,12 @@ export default function App() {
   };
 
   const handleDeleteBulletin = async (id: string) => {
+    setBulletins((prev) => prev.filter((b) => b.id !== id));
     try {
       await deleteDoc(fsDoc(db, "bulletins", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus catatan:", err);
+      alert("Gagal menghapus catatan: " + (err.message || "Izin ditolak"));
     }
   };
 
@@ -431,13 +433,17 @@ export default function App() {
   };
 
   const handleToggleDeadline = async (id: string, currentStatus: "pending" | "in_progress" | "completed") => {
+    const nextStatus = currentStatus === "completed" ? "pending" : "completed";
+    setDeadlines((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: nextStatus } : t))
+    );
     try {
-      const nextStatus = currentStatus === "completed" ? "pending" : "completed";
       await updateDoc(fsDoc(db, "deadlines", id), {
         status: nextStatus,
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error update status deadline:", err);
+      alert("Gagal update status: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
@@ -455,33 +461,47 @@ export default function App() {
 
   // ─── Fungsi Admin: Pesan WhatsApp (Firestore) ───────────────────────────────
   const handleDeleteMessage = async (id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
     try {
       await deleteDoc(fsDoc(db, "messages", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus pesan:", err);
+      alert("Gagal menghapus pesan: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
 
   const handleBulkDeleteMessages = async (ids: string[]) => {
+    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
     try {
+      const batch = writeBatch(db);
       for (const id of ids) {
-        await deleteDoc(fsDoc(db, "messages", id));
+        batch.delete(fsDoc(db, "messages", id));
       }
-    } catch (err) {
+      await batch.commit();
+    } catch (err: any) {
       console.error("Error bulk delete pesan:", err);
+      alert("Gagal menghapus pesan massal: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
 
   const handleClearCompletedDeadlines = async () => {
+    const completed = deadlines.filter((d) => d.status === "completed");
+    if (completed.length === 0) return;
+
+    const completedIds = completed.map((d) => d.id);
+    setDeadlines((prev) => prev.filter((d) => d.status !== "completed"));
+
     try {
-      const completed = deadlines.filter((d) => d.status === "completed");
-      for (const d of completed) {
-        await deleteDoc(fsDoc(db, "deadlines", d.id));
+      const batch = writeBatch(db);
+      for (const id of completedIds) {
+        batch.delete(fsDoc(db, "deadlines", id));
       }
-    } catch (err) {
+      await batch.commit();
+    } catch (err: any) {
       console.error("Error bersihkan tugas selesai:", err);
+      alert("Gagal membersihkan tugas: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
@@ -500,38 +520,48 @@ export default function App() {
   };
 
   const handleDeleteSchedule = async (id: string) => {
+    setSchedules((prev) => prev.filter((s) => s.id !== id));
     try {
       await deleteDoc(fsDoc(db, "schedules", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus jadwal:", err);
+      alert("Gagal menghapus jadwal: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
 
   const handleUpdateScheduleStatus = async (id: string, status: ScheduleItem["status"]) => {
+    setSchedules((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, status } : s))
+    );
     try {
       await updateDoc(fsDoc(db, "schedules", id), { status });
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error update status jadwal:", err);
+      alert("Gagal update status jadwal: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
 
   // ─── Fungsi Admin: Rangkuman & Kuis (Firestore) ─────────────────────────────
   const handleDeleteSummary = async (id: string) => {
+    setSummaries((prev) => prev.filter((s) => s.id !== id));
     try {
       await deleteDoc(fsDoc(db, "summaries", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus rangkuman:", err);
+      alert("Gagal menghapus rangkuman: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
 
   const handleDeleteQuiz = async (id: string) => {
+    setQuizzes((prev) => prev.filter((q) => q.id !== id));
     try {
       await deleteDoc(fsDoc(db, "quizzes", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus kuis:", err);
+      alert("Gagal menghapus kuis: " + (err.message || "Izin ditolak"));
       throw err;
     }
   };
