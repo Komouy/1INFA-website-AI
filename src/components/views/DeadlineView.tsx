@@ -170,18 +170,15 @@ export default function DeadlineView({
 
             <div>
               <label style={{ fontSize: "11px", color: "var(--text-muted)", display: "block", marginBottom: "6px" }}>Mata Kuliah</label>
-              <select
+              <input
+                type="text"
+                required
+                placeholder="Nama Mata Kuliah..."
                 value={newTaskCourse}
                 onChange={(e) => setNewTaskCourse(e.target.value)}
                 className="kl-input"
                 style={{ width: "100%" }}
-              >
-                <option value="Sistem Basis Data">Sistem Basis Data</option>
-                <option value="Pemrograman Web Lanjut">Pemrograman Web Lanjut</option>
-                <option value="Algoritma & Struktur Data">Algoritma & Struktur Data</option>
-                <option value="Sistem Operasi">Sistem Operasi</option>
-                <option value="Matematika Diskrit">Matematika Diskrit</option>
-              </select>
+              />
             </div>
 
             <div>

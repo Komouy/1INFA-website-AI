@@ -149,53 +149,14 @@ Keluarkan format JSON PERSIS seperti skema berikut:
   try {
     const response = await model.generateContent(prompt);
     const text = response.response.text();
-    const parsed: AIProcessResult = JSON.parse(text);
-
-    // Preset bawaan kelas 1INFA
-    const defaultBulletins: BulletinItem[] = [
-      {
-        id: "b-kas-default",
-        title: "Uang Kas Kelas 1INFA",
-        category: "kas",
-        content: "Iuran kas kelas 1INFA dikumpulkan rutin untuk keperluan fotokopi modul, perlengkapan kelas, dan kegiatan bersama.",
-        tag: "Pengingat Kas",
-        highlight: "Rp 5.000/mgg atau Rp 20.000/bln",
-      },
-      {
-        id: "b-pdh-default",
-        title: "Baju PDH Informatika A",
-        category: "pdh",
-        content: "Pembuatan seragam Pakaian Dinas Harian (PDH) resmi angkatan Informatika A.",
-        tag: "Info Baju PDH",
-        highlight: "Sekitar Rp 135.000",
-      },
-      {
-        id: "b-buku-default",
-        title: "Buku & Modul Kuliah",
-        category: "buku",
-        content: "Pembelian buku dan modul praktikum diatur langsung sesuai instruksi dosen tiap mata kuliah.",
-        tag: "Buku Kuliah",
-        highlight: "Sesuai Arahan Dosen",
-      },
-    ];
-
-    let finalBulletins = Array.isArray(parsed.bulletins) ? [...parsed.bulletins] : [];
-    if (!finalBulletins.some(b => b.category === "kas")) {
-      finalBulletins.unshift(defaultBulletins[0]);
-    }
-    if (!finalBulletins.some(b => b.category === "pdh")) {
-      finalBulletins.splice(1, 0, defaultBulletins[1]);
-    }
-    if (!finalBulletins.some(b => b.category === "buku")) {
-      finalBulletins.push(defaultBulletins[2]);
-    }
+    const parsed: AIProcessResult = parseJsonSafe(text);
 
     return {
       deadlines: Array.isArray(parsed.deadlines) ? parsed.deadlines : [],
       schedules: Array.isArray(parsed.schedules) ? parsed.schedules : [],
       summaries: Array.isArray(parsed.summaries) ? parsed.summaries : [],
       quizzes: Array.isArray(parsed.quizzes) ? parsed.quizzes : [],
-      bulletins: finalBulletins,
+      bulletins: Array.isArray(parsed.bulletins) ? parsed.bulletins : [],
     };
   } catch (error: any) {
     console.error("Gemini AI Process Error:", error);

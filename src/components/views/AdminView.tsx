@@ -47,6 +47,9 @@ interface AdminViewProps {
   onDeleteSummary: (id: string) => Promise<void>;
   onDeleteQuiz: (id: string) => Promise<void>;
   onAddQuiz: (quiz: Omit<QuizSet, "id">) => Promise<void>;
+  onClearAllDeadlines: () => Promise<void>;
+  onClearAllSchedules: () => Promise<void>;
+  onClearAllBulletins: () => Promise<void>;
 }
 
 type AdminSubTab = "messages" | "ai-command" | "deadlines" | "schedules" | "bulletins" | "content";
@@ -74,6 +77,9 @@ export default function AdminView({
   onDeleteSummary,
   onDeleteQuiz,
   onAddQuiz,
+  onClearAllDeadlines,
+  onClearAllSchedules,
+  onClearAllBulletins,
 }: AdminViewProps) {
   // ─── PIN Auth State ──────────────────────────────────────────────────────────
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
@@ -774,18 +780,33 @@ export default function AdminView({
               </p>
             </div>
 
-            <button
-              onClick={async () => {
-                if (window.confirm("Hapus semua tugas yang statusnya sudah Selesai?")) {
-                  await onClearCompletedDeadlines();
-                }
-              }}
-              className="kl-btn kl-btn-secondary"
-              style={{ fontSize: "12px", color: "#ef4444" }}
-            >
-              <Trash2 size={13} />
-              <span>Bersihkan Tugas Selesai</span>
-            </button>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                onClick={async () => {
+                  if (window.confirm("Hapus semua tugas yang statusnya sudah Selesai?")) {
+                    await onClearCompletedDeadlines();
+                  }
+                }}
+                className="kl-btn kl-btn-secondary"
+                style={{ fontSize: "12px", color: "#64748b" }}
+              >
+                <Trash2 size={13} />
+                <span>Bersihkan Tugas Selesai</span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (window.confirm("Hapus SELURUH tugas di database (Reset ke 0)? Ini akan membersihkan semua data tugas/template agar murni dari bot WA.")) {
+                    await onClearAllDeadlines();
+                  }
+                }}
+                className="kl-btn kl-btn-secondary"
+                style={{ fontSize: "12px", color: "#ef4444", borderColor: "#fecaca" }}
+              >
+                <Trash2 size={13} />
+                <span>Reset Semua Tugas (0)</span>
+              </button>
+            </div>
           </div>
 
           {deadlines.length === 0 ? (
@@ -866,14 +887,29 @@ export default function AdminView({
               </p>
             </div>
 
-            <button
-              onClick={() => setIsAddingSchedule(!isAddingSchedule)}
-              className="kl-btn kl-btn-primary"
-              style={{ fontSize: "12px" }}
-            >
-              <Plus size={14} />
-              <span>{isAddingSchedule ? "Tutup Form" : "Tambah Jadwal Baru"}</span>
-            </button>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                onClick={async () => {
+                  if (window.confirm("Hapus SELURUH jadwal di database (Reset ke 0)? Ini akan membersihkan semua jadwal template agar murni dari bot WA.")) {
+                    await onClearAllSchedules();
+                  }
+                }}
+                className="kl-btn kl-btn-secondary"
+                style={{ fontSize: "12px", color: "#ef4444", borderColor: "#fecaca" }}
+              >
+                <Trash2 size={13} />
+                <span>Reset Semua Jadwal (0)</span>
+              </button>
+
+              <button
+                onClick={() => setIsAddingSchedule(!isAddingSchedule)}
+                className="kl-btn kl-btn-primary"
+                style={{ fontSize: "12px" }}
+              >
+                <Plus size={14} />
+                <span>{isAddingSchedule ? "Tutup Form" : "Tambah Jadwal Baru"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Form Tambah Jadwal */}
@@ -1105,14 +1141,29 @@ export default function AdminView({
               </p>
             </div>
 
-            <button
-              onClick={() => setIsAddingBulletin(!isAddingBulletin)}
-              className="kl-btn kl-btn-primary"
-              style={{ fontSize: "12px" }}
-            >
-              <Plus size={14} />
-              <span>{isAddingBulletin ? "Tutup Form" : "Tambah Info Baru"}</span>
-            </button>
+            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+              <button
+                onClick={async () => {
+                  if (window.confirm("Hapus SELURUH catatan di database (Reset ke 0)? Ini akan membersihkan semua data catatan/template agar murni dari bot WA.")) {
+                    await onClearAllBulletins();
+                  }
+                }}
+                className="kl-btn kl-btn-secondary"
+                style={{ fontSize: "12px", color: "#ef4444", borderColor: "#fecaca" }}
+              >
+                <Trash2 size={13} />
+                <span>Reset Semua Catatan (0)</span>
+              </button>
+
+              <button
+                onClick={() => setIsAddingBulletin(!isAddingBulletin)}
+                className="kl-btn kl-btn-primary"
+                style={{ fontSize: "12px" }}
+              >
+                <Plus size={14} />
+                <span>{isAddingBulletin ? "Tutup Form" : "Tambah Info Baru"}</span>
+              </button>
+            </div>
           </div>
 
           {/* Form Tambah Bulletin */}

@@ -66,33 +66,6 @@ export default function App() {
 
   // ─── Real-time Firestore Listener untuk Bulletin Board ────────────────────
   useEffect(() => {
-    const defaultBulletins = [
-      {
-        title: "Uang Kas Kelas 1INFA",
-        category: "kas",
-        content: "Iuran kas kelas 1INFA dikumpulkan rutin untuk keperluan fotokopi modul, perlengkapan kelas, dan kegiatan bersama.",
-        tag: "Pengingat Kas",
-        highlight: "Rp 5.000/mgg atau Rp 20.000/bln",
-        createdAt: Timestamp.fromDate(new Date("2020-01-03")),
-      },
-      {
-        title: "Baju PDH Informatika A",
-        category: "pdh",
-        content: "Pembuatan seragam Pakaian Dinas Harian (PDH) resmi angkatan Informatika A. Estimasi biaya sekitar Rp 135.000.",
-        tag: "Info Baju PDH",
-        highlight: "Sekitar Rp 135.000",
-        createdAt: Timestamp.fromDate(new Date("2020-01-02")),
-      },
-      {
-        title: "Buku & Modul Kuliah",
-        category: "buku",
-        content: "Pembelian buku dan modul praktikum diatur langsung sesuai instruksi dosen tiap mata kuliah.",
-        tag: "Buku Kuliah",
-        highlight: "Sesuai Arahan Dosen",
-        createdAt: Timestamp.fromDate(new Date("2020-01-01")),
-      },
-    ];
-
     let unsubBulletins = () => {};
     try {
       const bq = query(collection(db, "bulletins"), orderBy("createdAt", "desc"));
@@ -578,6 +551,54 @@ export default function App() {
     }
   };
 
+  const handleClearAllDeadlines = async () => {
+    if (deadlines.length === 0) return;
+    const ids = deadlines.map((d) => d.id);
+    setDeadlines([]);
+    try {
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        batch.delete(fsDoc(db, "deadlines", id));
+      }
+      await batch.commit();
+    } catch (err: any) {
+      console.error("Error hapus semua deadline:", err);
+      alert("Gagal menghapus semua tugas: " + err.message);
+    }
+  };
+
+  const handleClearAllSchedules = async () => {
+    if (schedules.length === 0) return;
+    const ids = schedules.map((s) => s.id);
+    setSchedules([]);
+    try {
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        batch.delete(fsDoc(db, "schedules", id));
+      }
+      await batch.commit();
+    } catch (err: any) {
+      console.error("Error hapus semua jadwal:", err);
+      alert("Gagal menghapus semua jadwal: " + err.message);
+    }
+  };
+
+  const handleClearAllBulletins = async () => {
+    if (bulletins.length === 0) return;
+    const ids = bulletins.map((b) => b.id);
+    setBulletins([]);
+    try {
+      const batch = writeBatch(db);
+      for (const id of ids) {
+        batch.delete(fsDoc(db, "bulletins", id));
+      }
+      await batch.commit();
+    } catch (err: any) {
+      console.error("Error hapus semua bulletin:", err);
+      alert("Gagal menghapus semua catatan: " + err.message);
+    }
+  };
+
   const uniqueGroupNames = Array.from(
     new Set(messages.map((m) => m.group_name).filter(Boolean))
   );
@@ -756,6 +777,9 @@ export default function App() {
                   onDeleteSummary={handleDeleteSummary}
                   onDeleteQuiz={handleDeleteQuiz}
                   onAddQuiz={handleAddQuiz}
+                  onClearAllDeadlines={handleClearAllDeadlines}
+                  onClearAllSchedules={handleClearAllSchedules}
+                  onClearAllBulletins={handleClearAllBulletins}
                 />
               )}
             </>
