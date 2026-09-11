@@ -96,11 +96,9 @@ export default function App() {
     let unsubBulletins = () => {};
     try {
       const bq = query(collection(db, "bulletins"), orderBy("createdAt", "desc"));
-      unsubBulletins = onSnapshot(bq, async (snapshot) => {
+      unsubBulletins = onSnapshot(bq, (snapshot) => {
         if (snapshot.empty) {
-          for (const item of defaultBulletins) {
-            await addDoc(collection(db, "bulletins"), item);
-          }
+          setBulletins([]);
           return;
         }
         const items: BulletinItem[] = snapshot.docs.map((d) => ({
@@ -128,37 +126,9 @@ export default function App() {
     let unsubDeadlines = () => {};
     try {
       const q = query(collection(db, "deadlines"), orderBy("dueDate", "asc"));
-      unsubDeadlines = onSnapshot(q, async (snapshot) => {
+      unsubDeadlines = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
-          const defaultDeadlines = [
-            {
-              title: "Tugas Praktikum: Struktur Kontrol & Array",
-              course: "Algoritma & Struktur Data",
-              dueDate: new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0],
-              dueTime: "23:59",
-              priority: "high",
-              status: "pending",
-              sourceMessage: "Kumpulkan modul dan source code di portal akademik",
-              lecturer: "Dr. Budi Santoso, M.Kom",
-              type: "tugas_individu",
-              createdAt: serverTimestamp(),
-            },
-            {
-              title: "Perancangan Skema Database PostgreSQL",
-              course: "Sistem Basis Data",
-              dueDate: new Date(Date.now() + 6 * 86400000).toISOString().split("T")[0],
-              dueTime: "23:59",
-              priority: "medium",
-              status: "pending",
-              sourceMessage: "Tugas kelompok 2-3 orang format PDF laporan perancangan ERD",
-              lecturer: "Siti Rahma, S.T., M.T.",
-              type: "tugas_kelompok",
-              createdAt: serverTimestamp(),
-            },
-          ];
-          for (const item of defaultDeadlines) {
-            await addDoc(collection(db, "deadlines"), item);
-          }
+          setDeadlines([]);
           return;
         }
 
@@ -192,79 +162,9 @@ export default function App() {
     let unsubSchedules = () => {};
     try {
       const q = query(collection(db, "schedules"));
-      unsubSchedules = onSnapshot(q, async (snapshot) => {
+      unsubSchedules = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
-          const defaultSchedules = [
-            {
-              day: "Senin",
-              course: "Algoritma & Struktur Data",
-              code: "IF2101",
-              lecturer: "Dr. Budi Santoso, M.Kom",
-              startTime: "08:00",
-              endTime: "10:30",
-              room: "Lab Komputer 2",
-              sks: 3,
-              status: "normal",
-              notes: "Membawa modul praktikum Bab 1-3",
-              createdAt: serverTimestamp(),
-            },
-            {
-              day: "Selasa",
-              course: "Sistem Basis Data",
-              code: "IF2102",
-              lecturer: "Siti Rahma, S.T., M.T.",
-              startTime: "10:00",
-              endTime: "12:30",
-              room: "Ruang Teori 304",
-              sks: 3,
-              status: "normal",
-              notes: "Instalasi PostgreSQL di laptop masing-masing",
-              createdAt: serverTimestamp(),
-            },
-            {
-              day: "Rabu",
-              course: "Pemrograman Web Lanjut",
-              code: "IF2103",
-              lecturer: "Ahmad Fauzi, M.Cs",
-              startTime: "13:00",
-              endTime: "15:30",
-              room: "Lab Rekayasa Perangkat Lunak",
-              sks: 3,
-              status: "online",
-              notes: "Kuliah daring via Zoom Meeting",
-              meetLink: "https://zoom.us/j/1234567890",
-              createdAt: serverTimestamp(),
-            },
-            {
-              day: "Kamis",
-              course: "Sistem Operasi",
-              code: "IF2104",
-              lecturer: "Prof. Hendra Wijaya",
-              startTime: "08:00",
-              endTime: "10:30",
-              room: "Ruang 201",
-              sks: 3,
-              status: "normal",
-              notes: "Pengenalan Linux Kernel dan Shell Scripting",
-              createdAt: serverTimestamp(),
-            },
-            {
-              day: "Jumat",
-              course: "Matematika Diskrit",
-              code: "IF2105",
-              lecturer: "Dra. Nurul Hidayah, M.Si",
-              startTime: "08:30",
-              endTime: "11:00",
-              room: "Ruang Teori 102",
-              sks: 2,
-              status: "normal",
-              notes: "Materi Teori Graf & Relasi Logika",
-              createdAt: serverTimestamp(),
-            },
-          ];
-          for (const item of defaultSchedules) {
-            await addDoc(collection(db, "schedules"), item);
-          }
+          setSchedules([]);
           return;
         }
 
@@ -543,10 +443,12 @@ export default function App() {
   };
 
   const handleDeleteDeadline = async (id: string) => {
+    setDeadlines((prev) => prev.filter((d) => d.id !== id));
     try {
       await deleteDoc(fsDoc(db, "deadlines", id));
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error menghapus deadline:", err);
+      alert("Gagal menghapus tugas dari Firestore: " + (err.message || "Izin ditolak. Pastikan Rules di Firebase Console sudah di-publish."));
       throw err;
     }
   };
