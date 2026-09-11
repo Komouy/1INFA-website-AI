@@ -12,6 +12,7 @@ venv/
 # Uploaded/generated files
 backend/uploads/*
 !backend/uploads/.gitkeep
+backend/*.db
 
 # Node dependencies and build output
 node_modules/
